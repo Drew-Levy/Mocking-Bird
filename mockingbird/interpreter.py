@@ -1,20 +1,16 @@
 from prompt_toolkit import PromptSession
+from .wifi import Wifi
 
 
 class Interpreter:
     def __init__(self):
         self._session = PromptSession()
-        self.ssid = None
+        self._wifi = Wifi()
 
-    def run(self):
+    def repl(self):
         while True:
             try:
-                user_input = self._session.prompt(f"[{self.ssid}]> ")
+                user_input = self._session.prompt(f"[{self._wifi}]> ")
                 print(user_input)
             except (KeyboardInterrupt, EOFError):
                 break
-
-
-if __name__ == "__main__":
-    i = Interpreter()
-    i.run()
