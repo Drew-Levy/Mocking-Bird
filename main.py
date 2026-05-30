@@ -227,7 +227,7 @@ class Scanner:
     def start(self) -> None:
         self.run_initial_nmcli_scan()
 
-        print("[*] Launching secondary live packet listeners...")
+        print("[*] Conintuing to listen for additional networks...")
         threading.Thread(target=self.hop_channels, daemon=True).start()
         threading.Thread(target=self.run_scapy_sniff, daemon=True).start()
 
@@ -280,7 +280,7 @@ def main() -> None:
 
     print("\n" + "═" * 83)
     print("  Mocking Bird — WiFi Exploitation Framework")
-    print(f" Interface:  Scapy Intercept [{iface}]")
+    print(f"  Interface:  Scapy Intercept [{iface}]")
     print("  T — Open Target Select Menu  |  Ctrl+C — quit")
     print("═" * 83 + "\n")
 
@@ -297,12 +297,13 @@ def main() -> None:
                 target, attack = result
                 match attack:
                     case 1:
-                        ssid_brute(target)
+                        ssid_brute(target["SSID"])
                     case 2:
                         print("\n[!] Alternate Attack Hook Triggered!\n")
                     case 3:
                         password_list = "rockyou.txt"
-                        brute_force_login("http://10.100.63.4/", password_list)
+                        url = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
+                        brute_force_login(url, password_list)
         
         print("\n[*] Returning to monitoring view...")
         scanner.output_paused = False
