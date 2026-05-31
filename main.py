@@ -14,6 +14,7 @@ ATTACKS = [
     ("Admin Login Brute Force", "Bypass auth rate limiting by brute forcing authorization cookies."),
     ("Command Injection", "Run arbitrary commands as the Admin user. This requires Admin access (Refer to Attack #3)"),
     ("Denial of Service (DoS)",   "Utilize a Stack Overflow to take down the Admin console (Requires physical restart to fix)"),
+    ("Light Show", "Start a light show from the router"),
 ]
 
 URL = ""
@@ -320,6 +321,15 @@ def main() -> None:
                         if not IP:
                             IP = str(input("[!] Enter IP of the TP-Link Router:").strip())
                         dos_admin_portal(IP)
+                    case 6:
+                        if not URL:
+                            URL = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
+                        if PASSWORD:
+                            print(f"[-] Please get the Admin password before running this attack")
+                            lightshow(URL, PASSWORD)
+                        else:
+                            password = str(input("[!] Enter the Admin password:").strip())
+                            lightshow(URL, password)
         
         print("\n[*] Returning to monitoring view...")
         scanner.output_paused = False

