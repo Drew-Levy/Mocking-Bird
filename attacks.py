@@ -276,11 +276,13 @@ def change_password(target_url: str, current_password: str, new_password: str) -
     old_pass = encode_password(current_password)
     new_pass = encode_password(new_password)
     try:
-        response = requests.get(target_url+session_id+"/userRpm/ChangeLoginPwdRpm.htm?oldname=admin&oldpassword="+old_pass+"&newname=admin&newpassword="+new_pass+"&newpassword2="+new_pass+"&Save=Save")
+        response = requests.get(target_url+session_id+"/userRpm/ChangeLoginPwdRpm.htm?oldname=admin&oldpassword="+old_pass+"&newname=admin&newpassword="+new_pass+"&newpassword2="+new_pass+"&Save=Save",cookies=session_cookie,headers=headers)
         if response.status_code == 200 and "httpAutErrorArray" not in response.text:
             print(f"[+] Password changed successfully!")
+            return new_password
         else:
-            print(f"[-] Password was not able to be changed successfully (Try again with a different password)")
+            print("[-] Password was not able to be changed successfully (Try again with a different password)")
+        return current_password
 
     except requests.exceptions.RequestException as e:
         print(f"[!] Connection error: {e}")
