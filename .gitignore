@@ -1,2 +1,4 @@
 venv/*
+.venv/
 rockyou.txt
+__pycache__/
