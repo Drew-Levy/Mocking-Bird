@@ -4,4 +4,4 @@ rockyou.txt
 __pycache__/
 TP-Link-Pins.txt
 fix.sh
-
+handshake/*
