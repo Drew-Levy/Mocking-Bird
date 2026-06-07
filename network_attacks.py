@@ -55,17 +55,12 @@ def get_local_devices() -> list:
                 macs.append(match.group(1))
     return macs
 
-def generate_wordlist() -> str:
-    filename = "TP-Link-Pins.txt"
-    if os.path.exists(filename):
-        return filename
+def generate_wordlist(filename: str) -> None:
 
     with open(filename, 'w') as f:
         for i in range(100000000):
             f.write(f"{i:08d}\n")
-
     print(f"Created {filename} with pins")
-    return filename
 
 def send_deauth(bssid: str, client_list:list, channel: int)-> None:
     i_face = get_iface()
