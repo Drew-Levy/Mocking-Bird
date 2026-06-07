@@ -359,12 +359,13 @@ def main() -> None:
                     case 8:
                         wordlist = "TP-Link-Pins.txt"
                         if not os.path.exists(wordlist):
+                            print("[*] Wordlist does not exist generating it now (This will be a large file)...")
                             wordlist = generate_wordlist()
                         
                         client_list = get_local_devices()
                         password = handshake_attack(target["BSSID"], target["Channel"], target["SSID"], client_list, wordlist)
                         if password:
-                            print(f"[+] Got password: {password}!")
+                            print(f"[+] PASSWORD FOUND: {password}!")
                         else:
                             print("[-] Failed to get password")
                     case 9:
