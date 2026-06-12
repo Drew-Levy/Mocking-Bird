@@ -211,11 +211,11 @@ def packet_capture(target_ip: str):
     capture = pyshark.LiveCapture(interface="wlan1")
     seen = set()
 
+    print("\n[*] Starting the packet sniffer")
     for packet in capture.sniff_continuously():
         try:
             user_input = input().strip().lower()
             if user_input == "s":
-                print("\n[*] Stopping the packet sniffer :(")
                 break
 
             if "ip" not in packet:
@@ -241,4 +241,5 @@ def packet_capture(target_ip: str):
                             print("Found credential pair:", username, password)
         except:
             continue
+    print("\n[*] Stopping the packet sniffer :(")
     teardown_network()
