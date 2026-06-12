@@ -476,7 +476,7 @@ def main() -> None:
                             IP = str(
                                 input("[!] Enter IP of the TP-Link Router:").strip()
                             )
-                        listen_for_admin(IP)
+                        packet_capture(IP)
 
         print("\n[*] Returning to monitoring view...")
         scanner.output_paused = False

