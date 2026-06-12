@@ -39,11 +39,11 @@ ATTACKS = [
         "Crack 4-Way Handshake",
         "De-auth a client then capture the authentication requests to crack SSID Pin offline",
     ),
-    ("Light Show", "Start a light show from the router"),
     (
         "Packet Capture",
         "Capture packets from administrators containing credentials for the router",
     ),
+    ("Light Show", "Start a light show from the router"),
 ]
 
 URL = ""
@@ -462,6 +462,12 @@ def main() -> None:
                         else:
                             print("[-] Failed to get password")
                     case 9:
+                        if not IP:
+                            IP = str(
+                                input("[!] Enter IP of the TP-Link Router:").strip()
+                            )
+                        packet_capture(IP)
+                    case 10:
                         if not URL:
                             URL = request_url()
                         if PASSWORD:
@@ -471,12 +477,6 @@ def main() -> None:
                                 input("[!] Enter the Admin password:").strip()
                             )
                             lightshow(URL, password)
-                    case 10:
-                        if not IP:
-                            IP = str(
-                                input("[!] Enter IP of the TP-Link Router:").strip()
-                            )
-                        packet_capture(IP)
 
         print("\n[*] Returning to monitoring view...")
         scanner.output_paused = False
