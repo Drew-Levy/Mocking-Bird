@@ -6,6 +6,7 @@ import shutil
 from scapy.all import *
 from scapy.layers.dot11 import *
 import asyncio
+import pyshark
 
 
 def setup_network() -> None:
